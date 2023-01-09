@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Места для рекламы</title>
+    <link href="lib/bootstrap/dist/css/bootstrap.css" rel="stylesheet" />
+    <script src="lib/jquery/dist/jquery.js"></script>
+    <link href="lib/jquery-ui/themes/base/jquery-ui.min.css" rel="stylesheet" />
+    <script src="lib/jquery-ui/jquery-ui.js"></script>
+    <script src="lib/jquery-ui/ui/i18n/datepicker-ru.js"></script>
+ 
+</head>
+<body>
+    <div class="container">
+        <h2>Список мест для рекламы</h2>
+        <form name="adPlacesForm">
+            <table border="0">
+                <tr>
+                    <td>
+                        <label for="adPlaceId" id="typeCRUD" name="typeCRUD">Добавить:</label>
+                        <input type="hidden" id="adPlaceId" name="adPlaceId" value=0 />
+                        <div class="form-group">
+                            <label Добавить>Тип Рекламы:</label>
+                            <select id="typeId" name="typeId">
+                                <option value="0" selected>(Выбор)</option>
+                            </select>
+                        </div>
+                    </td>
+                    <td>
+                        <a id="filter" class="btn btn-sm btn-primary">Загрузить</a>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        <div class="form-group">
+                            <label for="place">Место:</label>
+                            <input class="form-control" name="place" id="place" />
+                        </div>
+                        <div class="form-group">
+                            <label for="desc">Описание:</label>
+                            <input class="form-control" name="desc" id="desc" />
+                        </div>
+                        <div class="form-group">
+                            <label for="cost">Стоимость:</label>
+                            <input class="form-control" name="cost" id="cost" />
+                        </div>
+                        <div class="panel-body">
+                            <button type="submit" class="btn btn-sm btn-primary">Сохранить</button>
+                            <a id="reset" class="btn btn-sm btn-primary">Сбросить</a>
+
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </form>
+
+
+        <table class="table table-condensed table-striped table-bordered">
+            <thead><tr><th>Код</th><th>Место</th><th>Стоимость</th><th>Тип</th><th>Действие</th></tr></thead>
+            <tbody id="data"></tbody>
+        </table>
+    </div>
+    
+    <script>
+
+        function GetAdPlaces() {
+            $.ajax({
+                url: '/api/adplaces',
+                type: 'GET',
+                contentType: "application/json",
+                success: function (adPlaces) {
+                    var rows = "";
+                    $.each(adPlaces, function (index, adPlace) {
+                        rows += row(adPlace);
+                    })
+                    $("table tbody#data").append(rows);
+                 }
+            });
+        }
+
+        function GetFilteredAdPlaces() {
+            var form = document.forms["adPlacesForm"];
+            var typeId = form.elements["typeId"].selectedIndex;
+            $.ajax({
+                url: '/api/adplaces/filteredadplaces?TypeId=' + typeId,
+                type: 'GET',
+                contentType: "application/json",
+                success: function (adPlaces) {
+                    var rows = "";
+                    $("table tbody#data").html("");
+                    $.each(adPlaces, function (index, adPlace) {
+                        rows += row(adPlace);
+                    })
+                    $("table tbody#data").append(rows);
+                }
+            });
+        }
+        function GetAdPlace(id) {
+            $.ajax({
+                url: '/api/adplaces/'+id,
+                type: 'GET',
+                contentType: "application/json",
+                success: function (adPlace) {
+                    var form = document.forms["adPlacesForm"];
+                    form.elements["adPlaceId"].value = adPlace.adPlaceId;
+                    form.elements["typeId"].selectedIndex = adPlace.typeId;
+                    form.elements["cost"].value = adPlace.cost;
+                    form.elements["desc"].value = adPlace.desc;
+                    form.elements["place"].value = adPlace.place;
+                }
+            });
+        }
+        function CreateAdPlace(typeId, cost, place, desc) {
+            $.ajax({
+                url: "api/adplaces",
+                contentType: "application/json",
+                method: "POST",
+                data: JSON.stringify({
+                    typeId: typeId,
+                    place: place,
+                    desc: desc,
+                    cost: parseFloat(cost),
+                }),
+                success: function (adPlace) {
+                    reset();
+                    var form = document.forms["adPlacesForm"];
+                    adPlace.typeName = form.elements["typeId"].options[typeId].text;
+                    $("table tbody#data").append(row(adPlace));
+                }
+            })
+        }
+        function EditAdPlace(adPlaceId, typeId, cost, place, desc) {
+            $.ajax({
+                url: "api/adplaces",
+                contentType: "application/json",
+                method: "PUT",
+                data: JSON.stringify({
+                    adPlaceId: parseInt(adPlaceId),
+                    typeId: typeId,
+                    place: place,
+                    desc: desc,
+                    cost: parseFloat(cost),
+                }),
+                success: function (adPlace) {
+                    reset();
+                    var form = document.forms["adPlacesForm"];
+                    adPlace.typeName = form.elements["typeId"].options[typeId].text;
+                    $("tr[data-rowid='" + adPlace.adPlaceId + "']").replaceWith(row(adPlace));
+                }
+            })
+        }
+
+        function reset() {
+            var form = document.forms["adPlacesForm"];
+            form.reset();
+            form.elements["adPlaceId"].value = 0;
+            $("#typeCRUD").html("Добавить:");
+        }
+
+        function DeleteAdPlace(id) {
+            $.ajax({
+                url: "api/adplaces/" + id,
+                contentType: "application/json",
+                method: "DELETE",
+                success: function (adPlace) {
+                    $("tr[data-rowid='" + id + "']").remove();
+                }
+            })
+        }
+        var row = function (adPlace) {
+            return "<tr data-rowid='" + adPlace.id + "'><td>" + adPlace.id + "</td>" +
+                "<td>" + adPlace.place + "</td>" +
+                "<td>" + adPlace.cost + "</td>" +
+                "<td>" + adPlace.typeName + "</td>" +
+                "<td><a class='editLink' data-id='" + adPlace.id + "'>Изменить</a> | " +
+                "<a class='removeLink' data-id='" + adPlace.id + "'>Удалить</a></td></tr>";
+        }
+
+        function GetAdTypes() {
+            var listItems = "";
+            $.ajax({
+                url: '/api/adplaces/adtypes',
+                type: 'GET',
+                contentType: "application/json",
+                success: function (adTypes) {
+                    listItems = listItems + "<option value=0 selected>(выбор)</option>";
+                    $.each(adTypes, function (index, adType) {
+                        listItems = listItems + "<option value='" + adType.id + "'>" + adType.typeName + "</option>";
+                    });
+                    $("#typeId").html(listItems);
+                }
+            });
+        }
+
+
+        $("#reset").click(function (e) {
+            e.preventDefault();
+            reset();
+        })
+
+
+        $("#filter").click(function (e) {
+            GetFilteredAdPlaces();            
+        })
+
+        $("form").submit(function (e) {
+
+            e.preventDefault();
+            var adPlaceId = this.elements["adPlaceId"].value;
+            var typeId = this.elements["typeId"].selectedIndex;
+            var cost = this.elements["cost"].value;
+            var desc = this.elements["desc"].value;
+            var place = this.elements["place"].value;
+            if (adPlaceId == 0)
+                CreateAdPlace(typeId, cost, place, desc);
+            else
+                EditAdPlace(adPlaceId, typeId, cost, place, desc);
+        });
+
+        $("body").on("click", ".editLink", function () {
+            var id = $(this).data("id");
+            $("#typeCRUD").html("Изменить:");
+            GetAdPlace(id);
+        })
+        $("body").on("click", ".removeLink", function () {
+            var id = $(this).data("id");
+            DeleteAdPlace(id);
+            reset();
+        })
+
+
+        GetAdPlaces();
+    </script>
+</body>
+
+</html>
